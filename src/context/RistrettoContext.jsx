@@ -1,4 +1,14 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { db } from '../firebase';
+import { 
+  collection, 
+  doc, 
+  setDoc, 
+  deleteDoc, 
+  onSnapshot, 
+  getDocs,
+  writeBatch
+} from 'firebase/firestore';
 
 const RistrettoContext = createContext();
 
@@ -34,90 +44,15 @@ export const RistrettoProvider = ({ children }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
 
   // Core States
-  const [menu, setMenu] = useState(() => {
-    try {
-      const saved = localStorage.getItem('ristretto_menu');
-      const parsed = saved ? JSON.parse(saved) : DEFAULT_PRODUCTS;
-      return Array.isArray(parsed) ? parsed : DEFAULT_PRODUCTS;
-    } catch (e) {
-      console.error('Error parsing menu from localStorage:', e);
-      return DEFAULT_PRODUCTS;
-    }
-  });
-
-  const [ventas, setVentas] = useState(() => {
-    try {
-      const saved = localStorage.getItem('ristretto_ventas');
-      const parsed = saved ? JSON.parse(saved) : [];
-      return Array.isArray(parsed) ? parsed : [];
-    } catch (e) {
-      console.error('Error parsing ventas from localStorage:', e);
-      return [];
-    }
-  });
-
-  const [gastos, setGastos] = useState(() => {
-    try {
-      const saved = localStorage.getItem('ristretto_gastos');
-      const parsed = saved ? JSON.parse(saved) : [];
-      return Array.isArray(parsed) ? parsed : [];
-    } catch (e) {
-      console.error('Error parsing gastos from localStorage:', e);
-      return [];
-    }
-  });
-
-  const [cajaActiva, setCajaActiva] = useState(() => {
-    try {
-      const saved = localStorage.getItem('ristretto_caja_activa');
-      return saved ? JSON.parse(saved) : null;
-    } catch (e) {
-      console.error('Error parsing cajaActiva from localStorage:', e);
-      return null;
-    }
-  });
-
-  const [arqueos, setArqueos] = useState(() => {
-    try {
-      const saved = localStorage.getItem('ristretto_arqueos');
-      const parsed = saved ? JSON.parse(saved) : [];
-      return Array.isArray(parsed) ? parsed : [];
-    } catch (e) {
-      console.error('Error parsing arqueos from localStorage:', e);
-      return [];
-    }
-  });
-
-  const [pedidosActivos, setPedidosActivos] = useState(() => {
-    try {
-      const saved = localStorage.getItem('ristretto_pedidos_activos');
-      const parsed = saved ? JSON.parse(saved) : [];
-      return Array.isArray(parsed) ? parsed : [];
-    } catch (e) {
-      console.error('Error parsing pedidosActivos from localStorage:', e);
-      return [];
-    }
-  });
-
-  const [categorias, setCategorias] = useState(() => {
-    try {
-      const saved = localStorage.getItem('ristretto_categorias');
-      const parsed = saved ? JSON.parse(saved) : ['Cafetería', 'Pastelería', 'Comida', 'Bebidas'];
-      return Array.isArray(parsed) ? parsed : ['Cafetería', 'Pastelería', 'Comida', 'Bebidas'];
-    } catch (e) {
-      console.error('Error parsing categorias from localStorage:', e);
-      return ['Cafetería', 'Pastelería', 'Comida', 'Bebidas'];
-    }
-  });
-
-  const [authCredentials, setAuthCredentials] = useState(() => {
-    try {
-      const saved = localStorage.getItem('ristretto_auth_credentials');
-      return saved ? JSON.parse(saved) : { username: 'admin', password: 'ristretto.chapa' };
-    } catch (e) {
-      return { username: 'admin', password: 'ristretto.chapa' };
-    }
-  });
+  // Core States
+  const [menu, setMenu] = useState(DEFAULT_PRODUCTS);
+  const [ventas, setVentas] = useState([]);
+  const [gastos, setGastos] = useState([]);
+  const [cajaActiva, setCajaActiva] = useState(null);
+  const [arqueos, setArqueos] = useState([]);
+  const [pedidosActivos, setPedidosActivos] = useState([]);
+  const [categorias, setCategorias] = useState(['Cafetería', 'Pastelería', 'Comida', 'Bebidas']);
+  const [authCredentials, setAuthCredentials] = useState({ username: 'admin', password: 'ristretto.chapa' });
 
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     return sessionStorage.getItem('ristretto_auth') === 'true';
@@ -127,76 +62,141 @@ export const RistrettoProvider = ({ children }) => {
   const [cart, setCart] = useState([]);
   const [cartDiscount, setCartDiscount] = useState(0); // Porcentaje de descuento global (0 a 100)
 
-  // Sync to LocalStorage on changes
+  // Firestore Sync Listeners
   useEffect(() => {
-    localStorage.setItem('ristretto_menu', JSON.stringify(menu));
-  }, [menu]);
+    const unsub = onSnapshot(collection(db, "menu"), (snapshot) => {
+      const items = [];
+      snapshot.forEach(docSnap => {
+        items.push({ id: docSnap.id, ...docSnap.data() });
+      });
+      if (items.length > 0) {
+        setMenu(items);
+      }
+    });
+    return unsub;
+  }, []);
 
   useEffect(() => {
-    localStorage.setItem('ristretto_ventas', JSON.stringify(ventas));
-  }, [ventas]);
+    const unsub = onSnapshot(collection(db, "ventas"), (snapshot) => {
+      const items = [];
+      snapshot.forEach(docSnap => {
+        items.push({ id: docSnap.id, ...docSnap.data() });
+      });
+      items.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+      setVentas(items);
+    });
+    return unsub;
+  }, []);
 
   useEffect(() => {
-    localStorage.setItem('ristretto_gastos', JSON.stringify(gastos));
-  }, [gastos]);
+    const unsub = onSnapshot(collection(db, "gastos"), (snapshot) => {
+      const items = [];
+      snapshot.forEach(docSnap => {
+        items.push({ id: docSnap.id, ...docSnap.data() });
+      });
+      items.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+      setGastos(items);
+    });
+    return unsub;
+  }, []);
 
   useEffect(() => {
-    localStorage.setItem('ristretto_caja_activa', JSON.stringify(cajaActiva));
-  }, [cajaActiva]);
+    const unsub = onSnapshot(doc(db, "estado", "cajaActiva"), (docSnap) => {
+      if (docSnap.exists()) {
+        setCajaActiva(docSnap.data());
+      } else {
+        setCajaActiva(null);
+      }
+    });
+    return unsub;
+  }, []);
 
   useEffect(() => {
-    localStorage.setItem('ristretto_arqueos', JSON.stringify(arqueos));
-  }, [arqueos]);
+    const unsub = onSnapshot(collection(db, "arqueos"), (snapshot) => {
+      const items = [];
+      snapshot.forEach(docSnap => {
+        items.push({ id: docSnap.id, ...docSnap.data() });
+      });
+      items.sort((a, b) => new Date(b.fechaCierre) - new Date(a.fechaCierre));
+      setArqueos(items);
+    });
+    return unsub;
+  }, []);
 
   useEffect(() => {
-    localStorage.setItem('ristretto_pedidos_activos', JSON.stringify(pedidosActivos));
-  }, [pedidosActivos]);
+    const unsub = onSnapshot(collection(db, "pedidosActivos"), (snapshot) => {
+      const items = [];
+      snapshot.forEach(docSnap => {
+        items.push({ id: docSnap.id, ...docSnap.data() });
+      });
+      setPedidosActivos(items);
+    });
+    return unsub;
+  }, []);
 
   useEffect(() => {
-    localStorage.setItem('ristretto_categorias', JSON.stringify(categorias));
-  }, [categorias]);
+    const unsub = onSnapshot(collection(db, "categorias"), (snapshot) => {
+      const items = [];
+      snapshot.forEach(docSnap => {
+        items.push(docSnap.data().name);
+      });
+      if (items.length > 0) {
+        setCategorias(items);
+      }
+    });
+    return unsub;
+  }, []);
 
   useEffect(() => {
-    localStorage.setItem('ristretto_auth_credentials', JSON.stringify(authCredentials));
-  }, [authCredentials]);
+    const unsub = onSnapshot(doc(db, "estado", "authCredentials"), (docSnap) => {
+      if (docSnap.exists()) {
+        setAuthCredentials(docSnap.data());
+      }
+    });
+    return unsub;
+  }, []);
 
   // MENU CRUD
-  const addProduct = (product) => {
+  const addProduct = async (product) => {
+    const id = Date.now().toString();
     const newProduct = {
-      ...product,
-      id: Date.now().toString(),
+      id,
+      name: product.name,
+      category: product.category,
       costPrice: parseFloat(product.costPrice) || 0,
       sellPrice: parseFloat(product.sellPrice) || 0,
       stock: parseInt(product.stock) || 0,
       trackStock: !!product.trackStock
     };
-    setMenu(prev => [newProduct, ...prev]);
+    await setDoc(doc(db, "menu", id), newProduct);
   };
 
-  const updateProduct = (updatedProduct) => {
-    setMenu(prev => prev.map(p => p.id === updatedProduct.id ? {
-      ...updatedProduct,
+  const updateProduct = async (updatedProduct) => {
+    const p = {
+      id: updatedProduct.id,
+      name: updatedProduct.name,
+      category: updatedProduct.category,
       costPrice: parseFloat(updatedProduct.costPrice) || 0,
       sellPrice: parseFloat(updatedProduct.sellPrice) || 0,
       stock: parseInt(updatedProduct.stock) || 0,
       trackStock: !!updatedProduct.trackStock
-    } : p));
+    };
+    await setDoc(doc(db, "menu", updatedProduct.id), p);
   };
 
-  const deleteProduct = (id) => {
-    setMenu(prev => prev.filter(p => p.id !== id));
+  const deleteProduct = async (id) => {
+    await deleteDoc(doc(db, "menu", id));
   };
 
   // CATEGORIES LOGIC
-  const addCategoria = (name) => {
+  const addCategoria = async (name) => {
     const trimmed = name.trim();
     if (!trimmed) return;
-    setCategorias(prev => prev.includes(trimmed) ? prev : [...prev, trimmed]);
+    await setDoc(doc(db, "categorias", trimmed), { name: trimmed });
   };
 
-  const deleteCategoria = (name) => {
-    // Evitamos borrar las categorías por defecto si queremos, o simplemente permitimos todo
-    setCategorias(prev => prev.filter(c => c !== name));
+  const deleteCategoria = async (name) => {
+    await deleteDoc(doc(db, "categorias", name));
   };
 
   // AUTH LOGIC
@@ -214,39 +214,47 @@ export const RistrettoProvider = ({ children }) => {
     sessionStorage.removeItem('ristretto_auth');
   };
 
-  const updateCredentials = (newUsername, newPassword) => {
-    setAuthCredentials({
+  const updateCredentials = async (newUsername, newPassword) => {
+    await setDoc(doc(db, "estado", "authCredentials"), {
       username: newUsername.trim() || 'admin',
       password: newPassword || 'ristretto.chapa'
     });
   };
 
-  const resetDatos = () => {
-    setVentas([]);
-    setGastos([]);
-    setCajaActiva(null);
-    setArqueos([]);
-    setPedidosActivos([]);
+  const resetDatos = async () => {
+    const batch = writeBatch(db);
+    
+    const ventasSnaps = await getDocs(collection(db, "ventas"));
+    ventasSnaps.forEach(docSnap => batch.delete(doc(db, "ventas", docSnap.id)));
+
+    const gastosSnaps = await getDocs(collection(db, "gastos"));
+    gastosSnaps.forEach(docSnap => batch.delete(doc(db, "gastos", docSnap.id)));
+
+    const arqueosSnaps = await getDocs(collection(db, "arqueos"));
+    arqueosSnaps.forEach(docSnap => batch.delete(doc(db, "arqueos", docSnap.id)));
+
+    const pedidosSnaps = await getDocs(collection(db, "pedidosActivos"));
+    pedidosSnaps.forEach(docSnap => batch.delete(doc(db, "pedidosActivos", docSnap.id)));
+
+    batch.delete(doc(db, "estado", "cajaActiva"));
+
+    await batch.commit();
   };
 
   // ACTIVE TABLE ORDERS LOGIC
-  const guardarPedidoActivo = (id, items, discount = 0) => {
-    setPedidosActivos(prev => {
-      const existing = prev.find(p => p.id === id);
-      if (existing) {
-        return prev.map(p => p.id === id ? { ...p, items, discount } : p);
-      }
-      return [...prev, {
-        id,
-        items,
-        discount,
-        fechaApertura: new Date().toISOString()
-      }];
+  const guardarPedidoActivo = async (id, items, discount = 0) => {
+    const existing = pedidosActivos.find(p => p.id === id);
+    const fechaApertura = existing ? existing.fechaApertura : new Date().toISOString();
+    await setDoc(doc(db, "pedidosActivos", id), {
+      id,
+      items,
+      discount,
+      fechaApertura
     });
   };
 
-  const eliminarPedidoActivo = (id) => {
-    setPedidosActivos(prev => prev.filter(p => p.id !== id));
+  const eliminarPedidoActivo = async (id) => {
+    await deleteDoc(doc(db, "pedidosActivos", id));
   };
 
   // CART LOGIC
@@ -294,19 +302,19 @@ export const RistrettoProvider = ({ children }) => {
   };
 
   // CAJA (CASH DRAWER) MANAGEMENT
-  const abrirCaja = (montoInicial) => {
+  const abrirCaja = async (montoInicial) => {
     const nuevaCaja = {
       fechaApertura: new Date().toISOString(),
       montoInicial: parseFloat(montoInicial) || 0,
-      ingresosManuales: [], // { id, monto, descripcion, fecha }
-      egresosManuales: [],  // { id, monto, descripcion, fecha }
+      ingresosManuales: [],
+      egresosManuales: [],
       ventasEfectivo: 0,
-      ventasOtros: 0 // Tarjeta, Transferencia, etc.
+      ventasOtros: 0
     };
-    setCajaActiva(nuevaCaja);
+    await setDoc(doc(db, "estado", "cajaActiva"), nuevaCaja);
   };
 
-  const registrarMovimientoCaja = (tipo, monto, descripcion) => {
+  const registrarMovimientoCaja = async (tipo, monto, descripcion) => {
     if (!cajaActiva) return;
     const mov = {
       id: Date.now().toString(),
@@ -314,53 +322,49 @@ export const RistrettoProvider = ({ children }) => {
       descripcion: descripcion || '',
       fecha: new Date().toISOString()
     };
-
-    setCajaActiva(prev => {
-      const key = tipo === 'ingreso' ? 'ingresosManuales' : 'egresosManuales';
-      return {
-        ...prev,
-        [key]: [...prev[key], mov]
-      };
-    });
+    const key = tipo === 'ingreso' ? 'ingresosManuales' : 'egresosManuales';
+    const updatedCaja = {
+      ...cajaActiva,
+      [key]: [...(cajaActiva[key] || []), mov]
+    };
+    await setDoc(doc(db, "estado", "cajaActiva"), updatedCaja);
   };
 
-  const cerrarCaja = (efectivoRealContado) => {
+  const cerrarCaja = async (efectivoRealContado) => {
     if (!cajaActiva) return null;
 
-    const totalIngresosManuales = cajaActiva.ingresosManuales.reduce((acc, curr) => acc + curr.monto, 0);
-    const totalEgresosManuales = cajaActiva.egresosManuales.reduce((acc, curr) => acc + curr.monto, 0);
-    const totalVentasEfectivo = cajaActiva.ventasEfectivo;
+    const totalIngresosManuales = (cajaActiva.ingresosManuales || []).reduce((acc, curr) => acc + curr.monto, 0);
+    const totalEgresosManuales = (cajaActiva.egresosManuales || []).reduce((acc, curr) => acc + curr.monto, 0);
+    const totalVentasEfectivo = cajaActiva.ventasEfectivo || 0;
     
-    // El efectivo esperado físico en caja es:
-    // Monto inicial + ventas en efectivo + ingresos manuales de efectivo - egresos manuales de efectivo
     const efectivoEsperado = cajaActiva.montoInicial + totalVentasEfectivo + totalIngresosManuales - totalEgresosManuales;
     const diferencia = efectivoRealContado - efectivoEsperado;
 
+    const id = Date.now().toString();
     const arqueoCerrado = {
-      id: Date.now().toString(),
+      id,
       fechaApertura: cajaActiva.fechaApertura,
       fechaCierre: new Date().toISOString(),
       montoInicial: cajaActiva.montoInicial,
       ventasEfectivo: totalVentasEfectivo,
-      ventasOtros: cajaActiva.ventasOtros,
-      ingresosManuales: cajaActiva.ingresosManuales,
-      egresosManuales: cajaActiva.egresosManuales,
+      ventasOtros: cajaActiva.ventasOtros || 0,
+      ingresosManuales: cajaActiva.ingresosManuales || [],
+      egresosManuales: cajaActiva.egresosManuales || [],
       efectivoEsperado,
       efectivoReal: efectivoRealContado,
       diferencia,
       resultado: diferencia === 0 ? 'Balanceado' : diferencia > 0 ? 'Sobrante' : 'Faltante'
     };
 
-    setArqueos(prev => [arqueoCerrado, ...prev]);
-    setCajaActiva(null);
+    await setDoc(doc(db, "arqueos", id), arqueoCerrado);
+    await deleteDoc(doc(db, "estado", "cajaActiva"));
     return arqueoCerrado;
   };
 
   // COMPLETE SALE (CHECKOUT)
-  const realizarVenta = (metodoPago, totalVendido) => {
+  const realizarVenta = async (metodoPago, totalVendido) => {
     if (cart.length === 0) return null;
 
-    // Calcular costos e importes
     let totalOriginal = 0;
     const items = cart.map(item => {
       const itemSubtotal = item.product.sellPrice * item.quantity;
@@ -382,8 +386,9 @@ export const RistrettoProvider = ({ children }) => {
     const totalCosto = items.reduce((acc, item) => acc + (item.costPrice * item.quantity), 0);
     const ganancia = totalFinal - totalCosto;
 
+    const id = `V-${Date.now()}`;
     const nuevaVenta = {
-      id: `V-${Date.now()}`,
+      id,
       fecha: new Date().toISOString(),
       items,
       subtotal: totalOriginal,
@@ -392,60 +397,58 @@ export const RistrettoProvider = ({ children }) => {
       total: totalFinal,
       costo: totalCosto,
       ganancia,
-      metodoPago // 'Efectivo', 'Tarjeta', 'Transferencia'
+      metodoPago
     };
 
-    // 1. Agregar a ventas históricas
-    setVentas(prev => [nuevaVenta, ...prev]);
+    await setDoc(doc(db, "ventas", id), nuevaVenta);
 
-    // 2. Descontar stock
-    setMenu(prevMenu => prevMenu.map(p => {
-      const cartItem = cart.find(item => item.product.id === p.id);
-      if (cartItem && p.trackStock) {
-        return { ...p, stock: Math.max(0, p.stock - cartItem.quantity) };
-      }
-      return p;
-    }));
-
-    // 3. Impactar en la caja activa (si existe)
-    if (cajaActiva) {
-      setCajaActiva(prev => {
-        if (metodoPago === 'Efectivo') {
-          return { ...prev, ventasEfectivo: prev.ventasEfectivo + totalFinal };
-        } else {
-          return { ...prev, ventasOtros: prev.ventasOtros + totalFinal };
+    for (const item of cart) {
+      if (item.product.trackStock) {
+        const productRef = doc(db, "menu", item.product.id);
+        const currentProd = menu.find(p => p.id === item.product.id);
+        if (currentProd) {
+          await setDoc(productRef, {
+            ...currentProd,
+            stock: Math.max(0, currentProd.stock - item.quantity)
+          });
         }
-      });
+      }
     }
 
-    // 4. Limpiar Carrito
-    clearCart();
+    if (cajaActiva) {
+      const updatedCaja = {
+        ...cajaActiva,
+        ventasEfectivo: metodoPago === 'Efectivo' ? (cajaActiva.ventasEfectivo || 0) + totalFinal : (cajaActiva.ventasEfectivo || 0),
+        ventasOtros: metodoPago !== 'Efectivo' ? (cajaActiva.ventasOtros || 0) + totalFinal : (cajaActiva.ventasOtros || 0)
+      };
+      await setDoc(doc(db, "estado", "cajaActiva"), updatedCaja);
+    }
 
+    clearCart();
     return nuevaVenta;
   };
 
   // ADD EXPENSE
-  const addGasto = (gasto) => {
+  const addGasto = async (gasto) => {
+    const id = Date.now().toString();
     const nuevoGasto = {
-      id: Date.now().toString(),
+      id,
       fecha: gasto.fecha || new Date().toISOString().slice(0, 10),
       monto: parseFloat(gasto.monto) || 0,
-      categoria: gasto.categoria || 'Varios', // 'Insumos', 'Servicios', 'Sueldos', 'Alquiler', 'Varios'
+      categoria: gasto.categoria || 'Varios',
       descripcion: gasto.descripcion || '',
-      cajaAfectada: !!gasto.cajaAfectada // Si se pagó con efectivo de caja activa
+      cajaAfectada: !!gasto.cajaAfectada
     };
 
-    setGastos(prev => [nuevoGasto, ...prev]);
+    await setDoc(doc(db, "gastos", id), nuevoGasto);
 
-    // Si afectó a la caja activa, registrar egreso
     if (nuevoGasto.cajaAfectada && cajaActiva) {
-      registrarMovimientoCaja('egreso', nuevoGasto.monto, `Gasto: ${nuevoGasto.descripcion} (${nuevoGasto.categoria})`);
+      await registrarMovimientoCaja('egreso', nuevoGasto.monto, `Gasto: ${nuevoGasto.descripcion} (${nuevoGasto.categoria})`);
     }
   };
 
-  const deleteGasto = (id) => {
-    // Si queremos eliminarlo, lo quitamos de la lista
-    setGastos(prev => prev.filter(g => g.id !== id));
+  const deleteGasto = async (id) => {
+    await deleteDoc(doc(db, "gastos", id));
   };
 
   // IMPORT & EXPORT DATA (BACKUP)
@@ -469,18 +472,51 @@ export const RistrettoProvider = ({ children }) => {
     linkElement.click();
   };
 
-  const importData = (jsonData) => {
+  const importData = async (jsonData) => {
     try {
       const data = JSON.parse(jsonData);
-      if (data.menu) setMenu(data.menu);
-      if (data.ventas) setVentas(data.ventas);
-      if (data.gastos) setGastos(data.gastos);
-      setCajaActiva(data.cajaActiva || null);
-      if (data.arqueos) setArqueos(data.arqueos);
-      if (data.pedidosActivos) setPedidosActivos(data.pedidosActivos);
-      if (data.categorias) setCategorias(data.categorias);
+      const batch = writeBatch(db);
+
+      if (Array.isArray(data.menu)) {
+        data.menu.forEach(p => {
+          batch.set(doc(db, "menu", p.id), p);
+        });
+      }
+      if (Array.isArray(data.ventas)) {
+        data.ventas.forEach(v => {
+          batch.set(doc(db, "ventas", v.id), v);
+        });
+      }
+      if (Array.isArray(data.gastos)) {
+        data.gastos.forEach(g => {
+          batch.set(doc(db, "gastos", g.id), g);
+        });
+      }
+      if (data.cajaActiva) {
+        batch.set(doc(db, "estado", "cajaActiva"), data.cajaActiva);
+      } else {
+        batch.delete(doc(db, "estado", "cajaActiva"));
+      }
+      if (Array.isArray(data.arqueos)) {
+        data.arqueos.forEach(a => {
+          batch.set(doc(db, "arqueos", a.id), a);
+        });
+      }
+      if (Array.isArray(data.pedidosActivos)) {
+        data.pedidosActivos.forEach(pa => {
+          batch.set(doc(db, "pedidosActivos", pa.id), pa);
+        });
+      }
+      if (Array.isArray(data.categorias)) {
+        data.categorias.forEach(c => {
+          batch.set(doc(db, "categorias", c), { name: c });
+        });
+      }
+
+      await batch.commit();
       return { success: true };
     } catch (e) {
+      console.error("Error importing backup to Firestore:", e);
       return { success: false, error: e.message };
     }
   };
