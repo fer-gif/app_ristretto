@@ -7,6 +7,7 @@ import {
   TrendingDown, 
   Wallet,
   Database,
+  Upload,
   KeyRound,
   LogOut
 } from 'lucide-react';
@@ -17,12 +18,31 @@ const Sidebar = ({ isOpen, onClose }) => {
     setActiveTab, 
     cajaActiva, 
     exportData,
+    importData,
     authCredentials,
     logout,
     updateCredentials,
     resetDatos,
     userRole
   } = useRistretto();
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const text = event.target.result;
+      const res = await importData(text);
+      if (res && res.success) {
+        alert("Backup importado y restaurado en Firestore con éxito.");
+      } else {
+        alert("Error al importar backup: " + (res?.error || "Formato inválido"));
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
 
   const [showCredentialsModal, setShowCredentialsModal] = useState(false);
   const [newUsernameInput, setNewUsernameInput] = useState('');
@@ -203,8 +223,33 @@ const Sidebar = ({ isOpen, onClose }) => {
               }}
             >
               <Database size={14} />
-              Backup Datos
+              Exportar Backup
             </button>
+
+            {/* Import Backup Button */}
+            <label
+              className="btn btn-secondary"
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                fontSize: '0.85rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                margin: 0
+              }}
+            >
+              <Upload size={14} />
+              Importar Backup
+              <input
+                type="file"
+                accept=".json"
+                onChange={handleFileChange}
+                style={{ display: 'none' }}
+              />
+            </label>
 
             {/* Change Credentials Button */}
             <button
