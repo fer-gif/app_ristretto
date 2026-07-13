@@ -34,7 +34,8 @@ const POS = () => {
     eliminarPedidoActivo,
     clearCart,
     
-    categorias
+    categorias,
+    userRole
   } = useRistretto();
 
   // POS Search & Filter State
@@ -368,7 +369,7 @@ const POS = () => {
                             className="btn btn-primary"
                             style={{ flex: 1, padding: '8px 8px', fontSize: '0.82rem' }}
                           >
-                            Editar / Cobrar
+                            {userRole === 'admin' ? 'Editar / Cobrar' : 'Editar Pedido'}
                           </button>
                           <button
                             onClick={() => handlePrintComanda(table)}
@@ -848,30 +849,35 @@ const POS = () => {
                 flex: 1,
                 padding: '12px',
                 fontSize: '0.9rem',
-                whiteSpace: 'nowrap'
+                whiteSpace: 'nowrap',
+                backgroundColor: userRole === 'mozo' ? 'var(--primary-green)' : '',
+                color: userRole === 'mozo' ? 'var(--text-light)' : '',
+                borderColor: userRole === 'mozo' ? 'var(--primary-green)' : ''
               }}
             >
               {activeTableId ? 'Actualizar Mesa' : 'Guardar Mesa'}
             </button>
             
-            <button
-              onClick={handleCheckout}
-              disabled={cart.length === 0}
-              className="btn btn-primary"
-              style={{
-                flex: 1.5,
-                padding: '12px',
-                fontSize: '0.9rem',
-                boxShadow: 'var(--shadow-soft)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px'
-              }}
-            >
-              Cobrar
-              <ChevronRight size={16} />
-            </button>
+            {userRole === 'admin' && (
+              <button
+                onClick={handleCheckout}
+                disabled={cart.length === 0}
+                className="btn btn-primary"
+                style={{
+                  flex: 1.5,
+                  padding: '12px',
+                  fontSize: '0.9rem',
+                  boxShadow: 'var(--shadow-soft)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}
+              >
+                Cobrar
+                <ChevronRight size={16} />
+              </button>
+            )}
           </div>
         </div>
       </div>
