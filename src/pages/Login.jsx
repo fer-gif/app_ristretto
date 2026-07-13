@@ -182,10 +182,11 @@ const Login = () => {
           textAlign: 'center',
           fontSize: '0.78rem',
           color: 'var(--text-muted)',
-          lineHeight: '1.4'
+          lineHeight: '1.5'
         }}>
-          <strong>Credenciales por defecto del local:</strong><br />
-          Usuario: <code style={{ fontSize: '11px', padding: '2px 4px' }}>admin</code> | Clave: <code style={{ fontSize: '11px', padding: '2px 4px' }}>ristretto.chapa</code>
+          <strong>Credenciales de acceso para pruebas:</strong><br />
+          🔑 <strong>Admin:</strong> <code style={{ fontSize: '11px' }}>admin</code> / <code style={{ fontSize: '11px' }}>ristretto.chapa</code><br />
+          🏃‍♂️ <strong>Mozo:</strong> <code style={{ fontSize: '11px' }}>mozo</code> / <code style={{ fontSize: '11px' }}>ristretto.mozo</code>
         </div>
       </div>
     </div>

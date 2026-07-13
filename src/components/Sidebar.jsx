@@ -20,7 +20,8 @@ const Sidebar = () => {
     authCredentials,
     logout,
     updateCredentials,
-    resetDatos
+    resetDatos,
+    userRole
   } = useRistretto();
 
   const [showCredentialsModal, setShowCredentialsModal] = useState(false);
@@ -46,12 +47,12 @@ const Sidebar = () => {
   };
 
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'pos', label: 'Punto de Venta', icon: Coffee },
-    { id: 'menu', label: 'Menú', icon: BookOpen },
-    { id: 'gastos', label: 'Gastos', icon: TrendingDown },
-    { id: 'caja', label: 'Caja y Arqueo', icon: Wallet },
-  ];
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, role: 'admin' },
+    { id: 'pos', label: 'Punto de Venta', icon: Coffee, role: 'any' },
+    { id: 'menu', label: 'Menú', icon: BookOpen, role: 'any' },
+    { id: 'gastos', label: 'Gastos', icon: TrendingDown, role: 'admin' },
+    { id: 'caja', label: 'Caja y Arqueo', icon: Wallet, role: 'admin' },
+  ].filter(item => item.role === 'any' || userRole === 'admin');
 
   return (
     <aside className="no-print" style={{
@@ -158,65 +159,69 @@ const Sidebar = () => {
         flexDirection: 'column',
         gap: '12px'
       }}>
-        {/* Caja Status Badge */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          padding: '10px 14px',
-          backgroundColor: cajaActiva ? 'rgba(30, 63, 32, 0.06)' : 'rgba(168, 74, 50, 0.06)',
-          borderRadius: 'var(--radius-md)',
-          fontSize: '0.85rem',
-          fontWeight: 600,
-          color: cajaActiva ? 'var(--primary-green)' : 'var(--danger-rust)',
-          border: `1px solid ${cajaActiva ? 'rgba(30, 63, 32, 0.1)' : 'rgba(168, 74, 50, 0.1)'}`
-        }}>
-          <span style={{
-            width: '8px',
-            height: '8px',
-            borderRadius: '50%',
-            backgroundColor: cajaActiva ? 'var(--primary-green)' : 'var(--danger-rust)',
-            display: 'inline-block',
-            animation: cajaActiva ? 'pulse 2s infinite' : 'none'
-          }}></span>
-          {cajaActiva ? 'Caja Abierta' : 'Caja Cerrada'}
-        </div>
+        {userRole === 'admin' && (
+          <>
+            {/* Caja Status Badge */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 14px',
+              backgroundColor: cajaActiva ? 'rgba(30, 63, 32, 0.06)' : 'rgba(168, 74, 50, 0.06)',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              color: cajaActiva ? 'var(--primary-green)' : 'var(--danger-rust)',
+              border: `1px solid ${cajaActiva ? 'rgba(30, 63, 32, 0.1)' : 'rgba(168, 74, 50, 0.1)'}`
+            }}>
+              <span style={{
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                backgroundColor: cajaActiva ? 'var(--primary-green)' : 'var(--danger-rust)',
+                display: 'inline-block',
+                animation: cajaActiva ? 'pulse 2s infinite' : 'none'
+              }}></span>
+              {cajaActiva ? 'Caja Abierta' : 'Caja Cerrada'}
+            </div>
 
-        {/* Export Backup Button */}
-        <button
-          onClick={exportData}
-          className="btn btn-secondary"
-          style={{
-            width: '100%',
-            padding: '8px 12px',
-            fontSize: '0.85rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px'
-          }}
-        >
-          <Database size={14} />
-          Backup Datos
-        </button>
+            {/* Export Backup Button */}
+            <button
+              onClick={exportData}
+              className="btn btn-secondary"
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                fontSize: '0.85rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}
+            >
+              <Database size={14} />
+              Backup Datos
+            </button>
 
-        {/* Change Credentials Button */}
-        <button
-          onClick={handleOpenCredentials}
-          className="btn btn-secondary"
-          style={{
-            width: '100%',
-            padding: '8px 12px',
-            fontSize: '0.85rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px'
-          }}
-        >
-          <KeyRound size={14} />
-          Configurar Acceso
-        </button>
+            {/* Change Credentials Button */}
+            <button
+              onClick={handleOpenCredentials}
+              className="btn btn-secondary"
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                fontSize: '0.85rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}
+            >
+              <KeyRound size={14} />
+              Configurar Acceso
+            </button>
+          </>
+        )}
 
         {/* Logout Button */}
         <button

@@ -47,6 +47,7 @@ const POS = () => {
   const [showSaveTableModal, setShowSaveTableModal] = useState(false);
   const [tableNameInput, setTableNameInput] = useState('');
   const [saveErrors, setSaveErrors] = useState('');
+  const [activeTableForComanda, setActiveTableForComanda] = useState(null);
 
   // Modal States
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
@@ -158,6 +159,14 @@ const POS = () => {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handlePrintComanda = (table) => {
+    setActiveTableForComanda(table);
+    setTimeout(() => {
+      window.print();
+      setActiveTableForComanda(null);
+    }, 100);
   };
 
   return (
@@ -342,13 +351,26 @@ const POS = () => {
                           </strong>
                         </div>
                         
-                        <div style={{ display: 'flex', gap: '8px' }}>
+                        <div style={{ display: 'flex', gap: '6px' }}>
                           <button
                             onClick={() => handleLoadTable(table)}
                             className="btn btn-primary"
-                            style={{ flex: 1, padding: '8px 12px', fontSize: '0.85rem' }}
+                            style={{ flex: 1, padding: '8px 8px', fontSize: '0.82rem' }}
                           >
                             Editar / Cobrar
+                          </button>
+                          <button
+                            onClick={() => handlePrintComanda(table)}
+                            className="btn btn-secondary btn-icon-only"
+                            style={{
+                              padding: '8px',
+                              backgroundColor: 'transparent',
+                              borderColor: 'var(--primary-green)',
+                              color: 'var(--primary-green)'
+                            }}
+                            title="Imprimir Comanda de Cocina"
+                          >
+                            <Printer size={14} />
                           </button>
                           <button
                             onClick={() => eliminarPedidoActivo(table.id)}
@@ -1180,6 +1202,63 @@ const POS = () => {
           <div style={{ textAlign: 'center', marginTop: '30px', borderTop: '1px dashed #000', paddingTop: '10px', fontSize: '10px' }}>
             <p>¡Muchas gracias por elegirnos!</p>
             <p>instagram: ristrettochapa.ok</p>
+          </div>
+        </div>
+      )}
+
+      {/* Hidden print-only layout for kitchen comanda */}
+      {activeTableForComanda && (
+        <div className="print-only" style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '80mm',
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          color: '#000000',
+          padding: '10px'
+        }}>
+          <div style={{ textAlign: 'center', marginBottom: '14px' }}>
+            <h2 style={{ fontSize: '15px', fontWeight: 'bold', margin: '0 0 2px' }}>*** COMANDA DE COCINA ***</h2>
+            <p style={{ fontSize: '11px', fontWeight: 'bold', marginTop: '4px' }}>Mesa / Pedido: {activeTableForComanda.id}</p>
+            <p style={{ fontSize: '10px', margin: '2px 0 0' }}>Hora: {new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}</p>
+          </div>
+          
+          <div style={{ borderBottom: '1px dashed #000', marginBottom: '8px' }}></div>
+
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px', fontSize: '12px' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid #000' }}>
+                <th style={{ textAlign: 'center', width: '40px', paddingBottom: '4px' }}>Cant</th>
+                <th style={{ textAlign: 'left', paddingBottom: '4px' }}>Producto</th>
+              </tr>
+            </thead>
+            <tbody>
+              {activeTableForComanda.items.map((item, idx) => (
+                <React.Fragment key={idx}>
+                  <tr style={{ borderBottom: '1px solid #eee' }}>
+                    <td style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '14px', padding: '6px 0' }}>
+                      {item.quantity}
+                    </td>
+                    <td style={{ padding: '6px 0', fontSize: '13px' }}>
+                      {item.product.name}
+                    </td>
+                  </tr>
+                  {item.customNote && (
+                    <tr>
+                      <td></td>
+                      <td style={{ fontSize: '11px', color: '#000', fontWeight: 'bold', paddingBottom: '6px', fontStyle: 'italic' }}>
+                        * NOTA: {item.customNote}
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              ))}
+            </tbody>
+          </table>
+
+          <div style={{ borderTop: '1px dashed #000', marginTop: '10px', padding: '8px 0', textAlign: 'center', fontSize: '10px' }}>
+            <p>Ristretto Coffee • Chapadmalal</p>
           </div>
         </div>
       )}

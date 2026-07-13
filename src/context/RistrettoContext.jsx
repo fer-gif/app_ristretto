@@ -58,9 +58,20 @@ export const RistrettoProvider = ({ children }) => {
     return sessionStorage.getItem('ristretto_auth') === 'true';
   });
 
+  const [userRole, setUserRole] = useState(() => {
+    return sessionStorage.getItem('ristretto_role') || 'admin';
+  });
+
   // POS Cart State
   const [cart, setCart] = useState([]);
   const [cartDiscount, setCartDiscount] = useState(0); // Porcentaje de descuento global (0 a 100)
+
+  // Redirect mozo to POS tab if they land on dashboard
+  useEffect(() => {
+    if (userRole === 'mozo' && activeTab === 'dashboard') {
+      setActiveTab('pos');
+    }
+  }, [userRole, activeTab]);
 
   // Firestore Sync Listeners
   useEffect(() => {
@@ -201,9 +212,21 @@ export const RistrettoProvider = ({ children }) => {
 
   // AUTH LOGIC
   const login = (username, password) => {
-    if (username.trim() === authCredentials.username && password === authCredentials.password) {
+    const trimmedUser = username.trim();
+    if (trimmedUser === authCredentials.username && password === authCredentials.password) {
       setIsAuthenticated(true);
+      setUserRole('admin');
       sessionStorage.setItem('ristretto_auth', 'true');
+      sessionStorage.setItem('ristretto_role', 'admin');
+      return true;
+    }
+    
+    // Credenciales por defecto para mozo
+    if (trimmedUser === 'mozo' && password === 'ristretto.mozo') {
+      setIsAuthenticated(true);
+      setUserRole('mozo');
+      sessionStorage.setItem('ristretto_auth', 'true');
+      sessionStorage.setItem('ristretto_role', 'mozo');
       return true;
     }
     return false;
@@ -211,7 +234,9 @@ export const RistrettoProvider = ({ children }) => {
 
   const logout = () => {
     setIsAuthenticated(false);
+    setUserRole('admin');
     sessionStorage.removeItem('ristretto_auth');
+    sessionStorage.removeItem('ristretto_role');
   };
 
   const updateCredentials = async (newUsername, newPassword) => {
@@ -562,6 +587,7 @@ export const RistrettoProvider = ({ children }) => {
       
       authCredentials,
       isAuthenticated,
+      userRole,
       login,
       logout,
       updateCredentials,
