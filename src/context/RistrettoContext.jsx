@@ -270,10 +270,26 @@ export const RistrettoProvider = ({ children }) => {
   const guardarPedidoActivo = async (id, items, discount = 0) => {
     const existing = pedidosActivos.find(p => p.id === id);
     const fechaApertura = existing ? existing.fechaApertura : new Date().toISOString();
+    
+    // Sanitizar productos antes de persistir a Firestore
+    const sanitizedItems = (items || []).map(item => ({
+      product: {
+        id: item.product.id || "",
+        name: item.product.name || "Producto sin nombre",
+        category: item.product.category || "General",
+        sellPrice: parseFloat(item.product.sellPrice) || 0,
+        costPrice: parseFloat(item.product.costPrice) || 0,
+        trackStock: !!item.product.trackStock,
+        stock: parseInt(item.product.stock) || 0
+      },
+      quantity: parseInt(item.quantity) || 1,
+      customNote: item.customNote || ""
+    }));
+
     await setDoc(doc(db, "pedidosActivos", id), {
       id,
-      items,
-      discount,
+      items: sanitizedItems,
+      discount: parseFloat(discount) || 0,
       fechaApertura
     });
   };
@@ -388,69 +404,84 @@ export const RistrettoProvider = ({ children }) => {
 
   // COMPLETE SALE (CHECKOUT)
   const realizarVenta = async (metodoPago, totalVendido) => {
-    if (cart.length === 0) return null;
+    try {
+      if (cart.length === 0) return null;
 
-    let totalOriginal = 0;
-    const items = cart.map(item => {
-      const itemSubtotal = item.product.sellPrice * item.quantity;
-      totalOriginal += itemSubtotal;
-      return {
-        productId: item.product.id,
-        name: item.product.name,
-        category: item.product.category,
-        quantity: item.quantity,
-        sellPrice: item.product.sellPrice,
-        costPrice: item.product.costPrice,
-        customNote: item.customNote,
-        subtotal: itemSubtotal
+      let totalOriginal = 0;
+      const items = cart.map(item => {
+        const sellPrice = parseFloat(item.product.sellPrice) || 0;
+        const costPrice = parseFloat(item.product.costPrice) || 0;
+        const quantity = parseInt(item.quantity) || 1;
+        const itemSubtotal = sellPrice * quantity;
+        totalOriginal += itemSubtotal;
+        
+        return {
+          productId: item.product.id || "",
+          name: item.product.name || "Producto sin nombre",
+          category: item.product.category || "Cafetería",
+          quantity: quantity,
+          sellPrice: sellPrice,
+          costPrice: costPrice,
+          customNote: item.customNote || "",
+          subtotal: itemSubtotal
+        };
+      });
+
+      const discountPercent = parseFloat(cartDiscount) || 0;
+      const descuentoMonto = totalOriginal * (discountPercent / 100);
+      const totalFinal = totalOriginal - descuentoMonto;
+      const totalCosto = items.reduce((acc, item) => acc + (item.costPrice * item.quantity), 0);
+      const ganancia = totalFinal - totalCosto;
+
+      const id = `V-${Date.now()}`;
+      const nuevaVenta = {
+        id,
+        fecha: new Date().toISOString(),
+        items,
+        subtotal: totalOriginal,
+        descuentoPorcentaje: discountPercent,
+        descuentoMonto,
+        total: totalFinal,
+        costo: totalCosto,
+        ganancia,
+        metodoPago: metodoPago || "Efectivo"
       };
-    });
 
-    const descuentoMonto = totalOriginal * (cartDiscount / 100);
-    const totalFinal = totalOriginal - descuentoMonto;
-    const totalCosto = items.reduce((acc, item) => acc + (item.costPrice * item.quantity), 0);
-    const ganancia = totalFinal - totalCosto;
+      console.log("Guardando venta en Firestore:", nuevaVenta);
+      await setDoc(doc(db, "ventas", id), nuevaVenta);
 
-    const id = `V-${Date.now()}`;
-    const nuevaVenta = {
-      id,
-      fecha: new Date().toISOString(),
-      items,
-      subtotal: totalOriginal,
-      descuentoPorcentaje: cartDiscount,
-      descuentoMonto,
-      total: totalFinal,
-      costo: totalCosto,
-      ganancia,
-      metodoPago
-    };
-
-    await setDoc(doc(db, "ventas", id), nuevaVenta);
-
-    for (const item of cart) {
-      if (item.product.trackStock) {
-        const productRef = doc(db, "menu", item.product.id);
-        const currentProd = menu.find(p => p.id === item.product.id);
-        if (currentProd) {
-          await setDoc(productRef, {
-            ...currentProd,
-            stock: Math.max(0, currentProd.stock - item.quantity)
-          });
+      // Actualizar stock
+      for (const item of cart) {
+        if (item.product.trackStock) {
+          const productRef = doc(db, "menu", item.product.id);
+          const currentProd = menu.find(p => p.id === item.product.id);
+          if (currentProd) {
+            const currentStock = parseInt(currentProd.stock) || 0;
+            const subQty = parseInt(item.quantity) || 1;
+            await setDoc(productRef, {
+              ...currentProd,
+              stock: Math.max(0, currentStock - subQty)
+            });
+          }
         }
       }
-    }
 
-    if (cajaActiva) {
-      const updatedCaja = {
-        ...cajaActiva,
-        ventasEfectivo: metodoPago === 'Efectivo' ? (cajaActiva.ventasEfectivo || 0) + totalFinal : (cajaActiva.ventasEfectivo || 0),
-        ventasOtros: metodoPago !== 'Efectivo' ? (cajaActiva.ventasOtros || 0) + totalFinal : (cajaActiva.ventasOtros || 0)
-      };
-      await setDoc(doc(db, "estado", "cajaActiva"), updatedCaja);
-    }
+      // Actualizar caja activa
+      if (cajaActiva) {
+        const updatedCaja = {
+          ...cajaActiva,
+          ventasEfectivo: metodoPago === 'Efectivo' ? (parseFloat(cajaActiva.ventasEfectivo) || 0) + totalFinal : (parseFloat(cajaActiva.ventasEfectivo) || 0),
+          ventasOtros: metodoPago !== 'Efectivo' ? (parseFloat(cajaActiva.ventasOtros) || 0) + totalFinal : (parseFloat(cajaActiva.ventasOtros) || 0)
+        };
+        await setDoc(doc(db, "estado", "cajaActiva"), updatedCaja);
+      }
 
-    clearCart();
-    return nuevaVenta;
+      clearCart();
+      return nuevaVenta;
+    } catch (error) {
+      console.error("Fallo crítico en realizarVenta:", error);
+      throw error;
+    }
   };
 
   // ADD EXPENSE
