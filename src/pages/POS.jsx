@@ -48,6 +48,7 @@ const POS = () => {
   const [tableNameInput, setTableNameInput] = useState('');
   const [saveErrors, setSaveErrors] = useState('');
   const [activeTableForComanda, setActiveTableForComanda] = useState(null);
+  const [showCartMobile, setShowCartMobile] = useState(false);
 
   // Modal States
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
@@ -106,6 +107,7 @@ const POS = () => {
       setLastSale(sale);
       setShowCheckoutModal(false);
       setShowTicketModal(true);
+      setShowCartMobile(false);
       
       // Si cobramos una mesa activa, la eliminamos de la lista
       if (activeTableId) {
@@ -120,11 +122,13 @@ const POS = () => {
     setCartDiscount(table.discount || 0);
     setActiveTableId(table.id);
     setPosTab('productos'); // Cambiar a la cuadrícula de productos
+    setShowCartMobile(true);
   };
 
   const handleCancelEditTable = () => {
     clearCart();
     setActiveTableId(null);
+    setShowCartMobile(false);
   };
 
   const handleOpenSaveTable = () => {
@@ -134,6 +138,7 @@ const POS = () => {
       guardarPedidoActivo(activeTableId, cart, cartDiscount);
       clearCart();
       setActiveTableId(null);
+      setShowCartMobile(false);
     } else {
       setTableNameInput('');
       setSaveErrors('');
@@ -155,6 +160,7 @@ const POS = () => {
     clearCart();
     setActiveTableId(null);
     setShowSaveTableModal(false);
+    setShowCartMobile(false);
   };
 
   const handlePrint = () => {
@@ -171,9 +177,9 @@ const POS = () => {
 
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flex: 1, height: '100vh', overflow: 'hidden' }}>
-      <div className="no-print" style={{ display: 'flex', flex: 1, height: '100%', overflow: 'hidden' }}>
+      <div className="no-print pos-layout" style={{ display: 'flex', flex: 1, height: '100%', overflow: 'hidden' }}>
          {/* Products Selection Panel */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '24px', overflowY: 'auto' }}>
+      <div className="pos-products-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '24px', overflowY: 'auto' }}>
         
         {/* Navigation Tabs (Products vs. Active Tables) */}
         <div style={{ display: 'flex', gap: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '20px' }}>
@@ -444,7 +450,7 @@ const POS = () => {
             </div>
 
             {/* Products Grid */}
-            <div style={{
+            <div className="products-grid" style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
               gap: '16px',
@@ -524,7 +530,7 @@ const POS = () => {
       </div>
 
       {/* Cart Panel (Right side) */}
-      <div style={{
+      <div className={`pos-cart-panel ${showCartMobile ? 'open' : ''}`} style={{
         width: '380px',
         backgroundColor: 'var(--bg-card)',
         borderLeft: '1px solid var(--border-color)',
@@ -532,6 +538,27 @@ const POS = () => {
         flexDirection: 'column',
         height: '100%'
       }}>
+        {/* Mobile Cart Header */}
+        <div className="mobile-cart-header" style={{
+          display: 'none',
+          padding: '16px 20px',
+          borderBottom: '1px solid var(--border-color)',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          backgroundColor: 'var(--bg-card)'
+        }}>
+          <h3 style={{ fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: '1.1rem', color: 'var(--primary-green)' }}>
+            Detalle del Pedido
+          </h3>
+          <button 
+            onClick={() => setShowCartMobile(false)}
+            className="btn btn-secondary"
+            style={{ padding: '6px 12px', fontSize: '0.85rem' }}
+          >
+            Cerrar
+          </button>
+        </div>
+
         {/* Cart Header */}
         <div style={{
           padding: '24px 20px',
@@ -1260,6 +1287,47 @@ const POS = () => {
           <div style={{ borderTop: '1px dashed #000', marginTop: '10px', padding: '8px 0', textAlign: 'center', fontSize: '10px' }}>
             <p>Ristretto Coffee • Chapadmalal</p>
           </div>
+        </div>
+      )}
+
+      {/* Mobile Floating Cart Button (only on mobile) */}
+      {cart.length > 0 && (
+        <div className="mobile-only-cart-button no-print" style={{
+          position: 'fixed',
+          bottom: '20px',
+          left: '20px',
+          right: '20px',
+          zIndex: 90
+        }}>
+          <button 
+            onClick={() => setShowCartMobile(true)}
+            className="btn btn-primary"
+            style={{
+              width: '100%',
+              padding: '14px 20px',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '1rem',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              boxShadow: '0 8px 30px rgba(30, 63, 32, 0.25)'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <ShoppingCart size={18} />
+              <span>Ver Pedido</span>
+              <span style={{
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                padding: '2px 8px',
+                borderRadius: 'var(--radius-full)',
+                fontSize: '0.8rem'
+              }}>
+                {cart.reduce((acc, item) => acc + item.quantity, 0)}
+              </span>
+            </div>
+            <strong>{formatCurrency(total)}</strong>
+          </button>
         </div>
       )}
     </div>

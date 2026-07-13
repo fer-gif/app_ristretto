@@ -11,7 +11,7 @@ import {
   LogOut
 } from 'lucide-react';
 
-const Sidebar = () => {
+const Sidebar = ({ isOpen, onClose }) => {
   const { 
     activeTab, 
     setActiveTab, 
@@ -55,7 +55,7 @@ const Sidebar = () => {
   ].filter(item => item.role === 'any' || userRole === 'admin');
 
   return (
-    <aside className="no-print" style={{
+    <aside className={`no-print sidebar-drawer ${isOpen ? 'open' : ''}`} style={{
       width: '260px',
       backgroundColor: 'var(--bg-card)',
       borderRight: '1px solid var(--border-color)',
@@ -126,7 +126,10 @@ const Sidebar = () => {
           return (
             <button
               key={item.id}
-              onClick={() => setActiveTab(item.id)}
+              onClick={() => {
+                setActiveTab(item.id);
+                if (onClose) onClose();
+              }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -225,7 +228,10 @@ const Sidebar = () => {
 
         {/* Logout Button */}
         <button
-          onClick={logout}
+          onClick={() => {
+            logout();
+            if (onClose) onClose();
+          }}
           className="btn btn-danger"
           style={{
             width: '100%',

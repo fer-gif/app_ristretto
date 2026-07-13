@@ -22,6 +22,14 @@
   - [x] Crear la simulación de cobro (selección de método de pago: efectivo, tarjeta, transferencia)
   - [x] Diseñar el formato de Ticket Térmico (impresión física) y estilos CSS `@media print` para emular ticket de 58mm/80mm
 
+- [x] **Fase 9: Sincronización Multi-dispositivo, Roles e Impresión de Comandas**
+  - [x] Configurar Firebase SDK y Firestore (Offline-first / Multi-tab)
+  - [x] Migrar persistencia de LocalStorage a Firebase Firestore en tiempo real
+  - [x] Implementar Roles de Acceso (Admin y Mozo) en Login y Sidebar
+  - [x] Mantener menú y pedidos para el rol Mozo (ocultando panel financiero, gastos y arqueo de caja)
+  - [x] Agregar botón "Imprimir Comanda de Cocina" en POS (pedidos de mesas)
+  - [x] Diseñar el formato de Ticket Térmico (impresión física) y estilos CSS `@media print` para emular ticket de 58mm/80mm
+
 - [x] **Fase 5: Control de Gastos**
   - [x] Diseñar el panel de registro de gastos diarios/mensuales
   - [x] Crear el formulario de nuevo gasto (monto, categoría, descripción, fecha)

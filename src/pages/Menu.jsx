@@ -257,7 +257,7 @@ const Menu = () => {
       </div>
 
       {/* Products Table Card */}
-      <div className="card" style={{ padding: '0px', overflow: 'hidden' }}>
+      <div className="card" style={{ padding: '0px', overflowX: 'auto' }}>
         <table style={{
           width: '100%',
           borderCollapse: 'collapse',
