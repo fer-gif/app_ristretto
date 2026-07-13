@@ -101,19 +101,24 @@ const POS = () => {
     setShowCheckoutModal(true);
   };
 
-  const handleConfirmSale = () => {
-    const sale = realizarVenta(metodoPago, total);
-    if (sale) {
-      setLastSale(sale);
-      setShowCheckoutModal(false);
-      setShowTicketModal(true);
-      setShowCartMobile(false);
-      
-      // Si cobramos una mesa activa, la eliminamos de la lista
-      if (activeTableId) {
-        eliminarPedidoActivo(activeTableId);
-        setActiveTableId(null);
+  const handleConfirmSale = async () => {
+    try {
+      const sale = await realizarVenta(metodoPago, total);
+      if (sale) {
+        setLastSale(sale);
+        setShowCheckoutModal(false);
+        setShowTicketModal(true);
+        setShowCartMobile(false);
+        
+        // Si cobramos una mesa activa, la eliminamos de la lista
+        if (activeTableId) {
+          eliminarPedidoActivo(activeTableId);
+          setActiveTableId(null);
+        }
       }
+    } catch (err) {
+      console.error("Error al realizar la venta:", err);
+      alert("Hubo un error al registrar la venta. Por favor reintente.");
     }
   };
 
